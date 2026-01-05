@@ -1,19 +1,24 @@
 package org.example.ui;
 
-import org.example.ai.RandomStrategy;
-import org.example.model.Board;
-import org.example.persistence.JdbcGameDao;
-import org.example.service.GameService;
+import org.example.GomokuGame;
 
+/**
+ * Main application entry point for Gomoku.
+ * Creates and starts a new game.
+ */
 public class GomokuApp {
+    /**
+     * Main method to start the game.
+     * @param args command line arguments (not used)
+     */
     public static void main(String[] args) {
-        Board board = new Board();
-        // Use H2 in-memory database by default; change to file-based URL to persist between runs
-        String jdbcUrl = "jdbc:h2:./gomoku_db;AUTO_SERVER=FALSE"; // file DB in project folder
-        JdbcGameDao dao = new JdbcGameDao(jdbcUrl);
-        GameService service = new GameService(board, dao);
-        ConsoleUI ui = new ConsoleUI(service, new RandomStrategy());
+        // Create a new game
+        GomokuGame game = new GomokuGame();
+        
+        // Create the console UI
+        ConsoleUI ui = new ConsoleUI(game);
+        
+        // Start the game
         ui.start();
-        dao.finishGame(null);
     }
 }

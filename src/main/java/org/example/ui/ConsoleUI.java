@@ -1,71 +1,120 @@
 package org.example.ui;
 
-import org.example.factory.PlayerFactory;
+import org.example.GomokuGame;
 import org.example.model.Board;
-import org.example.model.Move;
-import org.example.persistence.GameDao;
-import org.example.service.GameService;
-import org.example.ai.MoveStrategy;
-import org.example.ai.RandomStrategy;
 
-import java.util.InputMismatchException;
 import java.util.Scanner;
 
+/**
+ * Console user interface for the Gomoku game.
+ * Handles display and player input.
+ */
 public class ConsoleUI {
-    private final Scanner scanner = new Scanner(System.in);
-    private final GameService service;
-    private final MoveStrategy aiStrategy;
+    private final GomokuGame game;  // The game instance
+    private final Scanner scanner;  // For reading user input
 
-    public ConsoleUI(GameService service, MoveStrategy aiStrategy) {
-        this.service = service;
-        this.aiStrategy = aiStrategy;
+    /**
+     * Creates a new console UI.
+     * @param game the game to control
+     */
+    public ConsoleUI(GomokuGame game) {
+        this.game = game;
+        this.scanner = new Scanner(System.in);
     }
 
+    /**
+     * Starts the game loop.
+     * Displays the board, gets player input, and checks for win/draw conditions.
+     */
     public void start() {
-        System.out.println("Welcome to Gomoku");
-        printBoard();
-        while (true) {
-            int player = service.getCurrentPlayer();
+        System.out.println("===== Welcome to Gomoku! =====");
+        System.out.println("Rules: Get 5 stones in a row to win!");
+        System.out.println("Player 1: X, Player 2: O");
+        System.out.println();
+
+        boolean gameOver = false;
+
+        while (!gameOver) {
+            // Display the current board
+            displayBoard();
+
+            // Get current player
+            int player = game.getCurrentPlayer();
+            System.out.println("\nPlayer " + player + "'s turn (" + (player == 1 ? "X" : "O") + ")");
+            System.out.print("Enter your move (row column): ");
+
             try {
-                if (player == Board.PLAYER_1) {
-                    System.out.print("Player " + player + " enter move (row col): ");
-                    if (!scanner.hasNextInt()) { System.out.println("Invalid input — enter two integers."); scanner.next(); continue; }
-                    int r = scanner.nextInt()-1;
-                    if (!scanner.hasNextInt()) { System.out.println("Invalid input — enter two integers."); scanner.next(); continue; }
-                    int c = scanner.nextInt()-1;
-                    boolean ok = service.makeMove(r, c);
-                    if (!ok) { System.out.println("Invalid move. Try again."); continue; }
-                    if (service.checkWin(r, c)) { printBoard(); System.out.println("Player " + player + " wins!"); break; }
+                // Read player input (1-based indexing for user-friendly input)
+                int row = scanner.nextInt() - 1;  // Convert to 0-based
+                int col = scanner.nextInt() - 1;  // Convert to 0-based
+
+                // Try to make the move
+                if (game.makeMove(row, col)) {
+                    // Check if this move won the game
+                    if (game.checkWin(row, col)) {
+                        displayBoard();
+                        System.out.println();
+                        System.out.println("*************************************");
+                        System.out.println("*** Player " + player + " (" + (player == 1 ? "X" : "O") + ") WINS! ***");
+                        System.out.println("*************************************");
+                        gameOver = true;
+                    } 
+                    // Check if the game is a draw
+                    else if (game.isDraw()) {
+                        displayBoard();
+                        System.out.println();
+                        System.out.println("===== Game Over - It's a Draw! =====");
+                        gameOver = true;
+                    } 
+                    // Continue to next player
+                    else {
+                        game.switchPlayer();
+                    }
                 } else {
-                    // simple AI turn
-                    Move m = aiStrategy.chooseMove(service.getBoard(), player);
-                    if (m == null) { System.out.println("No moves left — draw."); break; }
-                    service.makeMove(m.getRow(), m.getCol());
-                    System.out.println("AI placed at " + (m.getRow()+1) + "," + (m.getCol()+1));
-                    if (service.checkWin(m.getRow(), m.getCol())) { printBoard(); System.out.println("Player " + player + " (AI) wins!"); break; }
+                    System.out.println("Invalid move! That cell is occupied or out of bounds. Try again.");
                 }
-                if (service.isDraw()) { printBoard(); System.out.println("Draw!"); break; }
-                service.switchPlayer();
-                printBoard();
-            } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Try again."); scanner.nextLine();
+            } catch (Exception e) {
+                System.out.println("Invalid input! Please enter two numbers (row and column).");
+                scanner.nextLine();  // Clear the invalid input
             }
         }
-        System.out.println("Game over.");
+
+        scanner.close();
     }
 
-    private void printBoard() {
-        int[][] snap = service.getBoard().snapshot();
-        System.out.print("   ");
-        for (int c = 0; c < Board.SIZE; c++) System.out.printf("%2d", c+1);
+    /**
+     * Displays the current game board.
+     * Shows row/column numbers and stone positions.
+     */
+    private void displayBoard() {
+        Board board = game.getBoard();
+
         System.out.println();
-        for (int r=0;r<Board.SIZE;r++){
-            System.out.printf("%2d ", r+1);
-            for (int c=0;c<Board.SIZE;c++){
-                int v = snap[r][c];
-                System.out.print(v==Board.EMPTY ? " ." : (v==Board.PLAYER_1?" X":" O"));
+        
+        // Print column numbers
+        System.out.print("   ");
+        for (int col = 0; col < Board.SIZE; col++) {
+            System.out.printf("%2d ", col + 1);  // 1-based numbering for display
+        }
+        System.out.println();
+
+        // Print rows with row numbers
+        for (int row = 0; row < Board.SIZE; row++) {
+            System.out.printf("%2d ", row + 1);  // 1-based row number
+
+            // Print each cell in the row
+            for (int col = 0; col < Board.SIZE; col++) {
+                int cell = board.getCell(row, col);
+                
+                if (cell == Board.EMPTY) {
+                    System.out.print(" . ");  // Empty cell
+                } else if (cell == Board.PLAYER_1) {
+                    System.out.print(" X ");  // Player 1
+                } else {
+                    System.out.print(" O ");  // Player 2
+                }
             }
-            System.out.println();
+            System.out.println();  // New line after each row
         }
     }
 }

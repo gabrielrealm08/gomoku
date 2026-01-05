@@ -1,135 +1,126 @@
 package org.example;
 
-import java.util.Scanner;
+import org.example.model.Board;
 
+/**
+ * Main game logic for Gomoku.
+ * Handles game flow, win detection, and player turns.
+ */
 public class GomokuGame {
-    private int[][] board;
-    private static final int SIZE = 15; // Board size
-    private static final int EMPTY = 0;
-    private static final int PLAYER_1 = 1;
-    private static final int PLAYER_2 = 2;
-    private int currentPlayer;
-    private Scanner scanner;
+    private final Board board;          // The game board
+    private int currentPlayer;          // Current player (1 or 2)
 
+    /**
+     * Creates a new Gomoku game.
+     */
     public GomokuGame() {
-        board = new int[SIZE][SIZE];
-        scanner = new Scanner(System.in);
-        currentPlayer = PLAYER_1;
-        initializeBoard();
+        this.board = new Board();
+        this.currentPlayer = Board.PLAYER_1;  // Player 1 starts
     }
 
-    private void initializeBoard() {
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                board[i][j] = EMPTY;
-            }
+    /**
+     * Gets the current player.
+     * @return the current player ID (1 or 2)
+     */
+    public int getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    /**
+     * Gets the game board.
+     * @return the board
+     */
+    public Board getBoard() {
+        return board;
+    }
+
+    /**
+     * Makes a move for the current player.
+     * @param row the row position (0-14)
+     * @param col the column position (0-14)
+     * @return true if the move was successful, false if invalid
+     */
+    public boolean makeMove(int row, int col) {
+        if (!board.isValidMove(row, col)) {
+            return false;
         }
-    }
-
-    public void startGame() {
-        boolean gameOver = false;
-        while (!gameOver) {
-            printBoard();
-            System.out.println("Player " + currentPlayer + ", enter your move (row column): ");
-            int row = scanner.nextInt() - 1; // Subtract 1 for 0-based indexing
-            int col = scanner.nextInt() - 1;
-
-            if (isValidMove(row, col)) {
-                makeMove(row, col);
-                if (checkWin(row, col)) {
-                    printBoard();
-                    System.out.println("Player " + currentPlayer + " wins! Game Over.");
-                    gameOver = true;
-                } else if (isBoardFull()) {
-                    printBoard();
-                    System.out.println("The game is a draw! Game Over.");
-                    gameOver = true;
-                } else {
-                    switchPlayer();
-                }
-            } else {
-                System.out.println("Invalid move. Try again.");
-            }
-        }
-        scanner.close();
-    }
-
-    private boolean isValidMove(int row, int col) {
-        return row >= 0 && row < SIZE && col >= 0 && col < SIZE && board[row][col] == EMPTY;
-    }
-
-    private void makeMove(int row, int col) {
-        board[row][col] = currentPlayer;
-    }
-
-    private void switchPlayer() {
-        currentPlayer = (currentPlayer == PLAYER_1) ? PLAYER_2 : PLAYER_1;
-    }
-
-    private boolean isBoardFull() {
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                if (board[i][j] == EMPTY) {
-                    return false;
-                }
-            }
-        }
+        board.placeStone(row, col, currentPlayer);
         return true;
     }
 
-    private boolean checkWin(int row, int col) {
-        int winCondition = 5;
-        // Check horizontal, vertical, and both diagonals
-        // We must check combined counts for both directions (e.g. left + right)
-        if (countConsecutive(row, col, 0, 1) + countConsecutive(row, col, 0, -1) -1 >= winCondition) return true; // Horizontal
-        if (countConsecutive(row, col, 1, 0) + countConsecutive(row, col, -1, 0) -1 >= winCondition) return true; // Vertical
-        if (countConsecutive(row, col, 1, 1) + countConsecutive(row, col, -1, -1) -1 >= winCondition) return true; // Diagonal 1
-        if (countConsecutive(row, col, 1, -1) + countConsecutive(row, col, -1, 1) -1 >= winCondition) return true; // Diagonal 2
+    /**
+     * Checks if the last move resulted in a win.
+     * A player wins by getting 5 stones in a row (horizontally, vertically, or diagonally).
+     * @param row the row of the last move
+     * @param col the column of the last move
+     * @return true if the current player has won
+     */
+    public boolean checkWin(int row, int col) {
+        int winCondition = 5;  // Need 5 in a row to win
+
+        // Check all four directions: horizontal, vertical, and both diagonals
+        // For each direction, count stones in both directions and combine
+        
+        // Horizontal: left + right
+        if (countDirection(row, col, 0, 1) + countDirection(row, col, 0, -1) - 1 >= winCondition) {
+            return true;
+        }
+        
+        // Vertical: up + down
+        if (countDirection(row, col, 1, 0) + countDirection(row, col, -1, 0) - 1 >= winCondition) {
+            return true;
+        }
+        
+        // Diagonal (top-left to bottom-right)
+        if (countDirection(row, col, 1, 1) + countDirection(row, col, -1, -1) - 1 >= winCondition) {
+            return true;
+        }
+        
+        // Diagonal (top-right to bottom-left)
+        if (countDirection(row, col, 1, -1) + countDirection(row, col, -1, 1) - 1 >= winCondition) {
+            return true;
+        }
 
         return false;
     }
 
-    // Helper method to count consecutive stones in a specific direction (dr, dc)
-    private int countConsecutive(int r, int c, int dr, int dc) {
+    /**
+     * Counts consecutive stones in a specific direction.
+     * @param row starting row
+     * @param col starting column
+     * @param rowDelta row direction (-1, 0, or 1)
+     * @param colDelta column direction (-1, 0, or 1)
+     * @return count of consecutive stones in that direction
+     */
+    private int countDirection(int row, int col, int rowDelta, int colDelta) {
         int count = 0;
-        int tempR = r;
-        int tempC = c;
-        // Start counting from the given spot
-        while (tempR >= 0 && tempR < SIZE && tempC >= 0 && tempC < SIZE && board[tempR][tempC] == currentPlayer) {
+        int currentRow = row;
+        int currentCol = col;
+
+        // Count stones in the specified direction while they match the current player
+        while (currentRow >= 0 && currentRow < Board.SIZE && 
+               currentCol >= 0 && currentCol < Board.SIZE && 
+               board.getCell(currentRow, currentCol) == currentPlayer) {
             count++;
-            tempR += dr;
-            tempC += dc;
+            currentRow += rowDelta;
+            currentCol += colDelta;
         }
-        // NOTE: The checkWin method handles combining the count from opposite directions
-        // E.g., count from the left + count from the right
+
         return count;
     }
 
-    private void printBoard() {
-        // Simple console print
-        System.out.print("  ");
-        for (int c = 0; c < SIZE; c++) {
-            System.out.printf("%2d", c + 1);
-        }
-        System.out.println();
-
-        for (int r = 0; r < SIZE; r++) {
-            System.out.printf("%2d", r + 1);
-            for (int c = 0; c < SIZE; c++) {
-                if (board[r][c] == EMPTY) {
-                    System.out.print(" .");
-                } else if (board[r][c] == PLAYER_1) {
-                    System.out.print(" X");
-                } else {
-                    System.out.print(" O");
-                }
-            }
-            System.out.println();
-        }
+    /**
+     * Checks if the game is a draw (board is full with no winner).
+     * @return true if the board is full
+     */
+    public boolean isDraw() {
+        return board.isFull();
     }
 
-    public static void main(String[] args) {
-        GomokuGame game = new GomokuGame();
-        game.startGame();
+    /**
+     * Switches to the other player.
+     */
+    public void switchPlayer() {
+        currentPlayer = (currentPlayer == Board.PLAYER_1) ? Board.PLAYER_2 : Board.PLAYER_1;
     }
 }
